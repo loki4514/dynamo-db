@@ -7,6 +7,7 @@ import (
 
 	"dynamo-db/internal/config"
 	"dynamo-db/internal/node"
+	"dynamo-db/internal/wal"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -16,9 +17,10 @@ type Server struct {
 	http *http.Server
 	node *node.Node
 	log  zerolog.Logger
+	wal  *wal.WAL
 }
 
-func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger) *Server {
+func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger, wal *wal.WAL) *Server {
 	if cfg.Primary.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -27,7 +29,7 @@ func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger) *Server {
 	r.Use(gin.Recovery())
 	r.Use(requestLogger(log))
 
-	s := &Server{node: n, log: log}
+	s := &Server{node: n, log: log, wal: wal}
 	s.registerRoutes(r)
 
 	s.http = &http.Server{

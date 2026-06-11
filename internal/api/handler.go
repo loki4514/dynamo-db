@@ -3,6 +3,8 @@ package api
 import (
 	"net/http"
 
+	"dynamo-db/internal/wal"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,6 +28,11 @@ func (s *Server) putKey(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	if err := s.wal.Insert(wal.PUT, key, body.Value); err != nil {
+		s.log.Error().Err(err).Str("key", key).Msg("WAL write failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "WAL write failed"})
+		return
+	}
 	if err := s.node.Store.Put(key, body.Value); err != nil {
 		s.log.Error().Err(err).Str("key", key).Msg("put failed")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -36,6 +43,11 @@ func (s *Server) putKey(c *gin.Context) {
 
 func (s *Server) deleteKey(c *gin.Context) {
 	key := c.Param("key")
+	if err := s.wal.Insert(wal.DEL, key, ""); err != nil {
+		s.log.Error().Err(err).Str("key", key).Msg("WAL write failed")
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "WAL write failed"})
+		return
+	}
 	if err := s.node.Store.Delete(key); err != nil {
 		s.log.Error().Err(err).Str("key", key).Msg("delete failed")
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

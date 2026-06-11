@@ -29,6 +29,7 @@ go.work.sum
 
 # playground
 playground.go
+data
 
 # Editor/IDE
 # .idea/
