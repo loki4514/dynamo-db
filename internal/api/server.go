@@ -14,13 +14,15 @@ import (
 )
 
 type Server struct {
-	http *http.Server
-	node *node.Node
-	log  zerolog.Logger
-	wal  *wal.WAL
+	http  *http.Server
+	node  *node.Node
+	ring  *node.Ring
+	peers *node.Peers
+	log   zerolog.Logger
+	wal   *wal.WAL
 }
 
-func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger, wal *wal.WAL) *Server {
+func NewServer(cfg *config.Config, n *node.Node, ring *node.Ring, peers *node.Peers, log zerolog.Logger, wal *wal.WAL) *Server {
 	if cfg.Primary.Env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -29,7 +31,7 @@ func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger, wal *wal.WA
 	r.Use(gin.Recovery())
 	r.Use(requestLogger(log))
 
-	s := &Server{node: n, log: log, wal: wal}
+	s := &Server{node: n, ring: ring, peers: peers, log: log, wal: wal}
 	s.registerRoutes(r)
 
 	s.http = &http.Server{
@@ -41,6 +43,12 @@ func NewServer(cfg *config.Config, n *node.Node, log zerolog.Logger, wal *wal.WA
 	}
 
 	return s
+}
+
+// Handler exposes the underlying HTTP handler (the Gin engine) so tests can
+// drive the real routes via httptest without binding a port.
+func (s *Server) Handler() http.Handler {
+	return s.http.Handler
 }
 
 func (s *Server) Start() error {

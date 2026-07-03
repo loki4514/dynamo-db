@@ -76,8 +76,17 @@ func main() {
 	}
 	walReader.Close()
 
-	n := node.NewNode(store, log)
-	srv := api.NewServer(cfg, n, log, w)
+	n := node.NewNode(cfg.Primary.Name, cfg.Primary.Number, store, w, log)
+	peers, err := node.ParsePeers(cfg.Primary.Name, cfg.Primary.Peers)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to parse peers")
+	}
+	ids := make([]node.NodeIdentification, 0, len(peers.Names()))
+	for _, name := range peers.Names() {
+		ids = append(ids, node.NodeIdentification{NodeName: name})
+	}
+	ring := node.CreateNodes(150, ids, log)
+	srv := api.NewServer(cfg, n, ring, peers, log, w)
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)

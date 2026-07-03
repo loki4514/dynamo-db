@@ -2,7 +2,10 @@ module dynamo-db
 
 go 1.25.3
 
-require github.com/dgraph-io/badger/v4 v4.9.1
+require (
+	github.com/dgraph-io/badger/v4 v4.9.1
+	github.com/google/uuid v1.6.0
+)
 
 require (
 	github.com/bytedance/gopkg v0.1.3 // indirect

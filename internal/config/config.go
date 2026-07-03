@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/knadh/koanf/parsers/dotenv"
@@ -16,7 +17,10 @@ type Config struct {
 }
 
 type Primary struct {
-	Env string `koanf:"env"`
+	Env    string   `koanf:"env"`
+	Name   string   `koanf:"name"`   // this node's identity — hashed onto the ring
+	Number int      `koanf:"number"` // metadata only
+	Peers  []string `koanf:"peers"`  // all nodes as name@host:port (incl. self); ring + networking built from this
 }
 
 type ServerConfig struct {
@@ -32,11 +36,15 @@ type ServerConfig struct {
 func Load(path string) (*Config, error) {
 	k := koanf.New(".")
 
-	// dotenv file: transform SERVER__PORT → server.port
-	if err := k.Load(file.Provider(path), dotenv.ParserEnv("", ".", func(s string) string {
-		return strings.ReplaceAll(strings.ToLower(s), "__", ".")
-	})); err != nil {
-		return nil, fmt.Errorf("load .env file %q: %w", path, err)
+	// dotenv file (optional): transform SERVER__PORT → server.port. If the file
+	// is absent (e.g. in Docker, where env vars carry the config), skip it and
+	// rely on env vars alone.
+	if _, statErr := os.Stat(path); statErr == nil {
+		if err := k.Load(file.Provider(path), dotenv.ParserEnv("", ".", func(s string) string {
+			return strings.ReplaceAll(strings.ToLower(s), "__", ".")
+		})); err != nil {
+			return nil, fmt.Errorf("load .env file %q: %w", path, err)
+		}
 	}
 
 	// env vars override the file with the same transformation

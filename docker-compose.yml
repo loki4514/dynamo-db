@@ -1,0 +1,40 @@
+# Three copies of the SAME binary, different env — this is where "3 nodes"
+# comes from, NOT a loop in main.go. Each service is one node/process.
+#
+# Addresses use Docker service names (node-1/2/3), NOT localhost: inside a
+# container "localhost" is that container itself, so peers must be reached by
+# service name over the compose network. PRIMARY__PEERS is identical on every
+# node (static membership) — each finds itself by matching PRIMARY__NAME.
+#
+# Storage is in-memory (badger WithInMemory), so no volumes and data is lost on
+# restart — fine for exercising routing.
+services:
+  node-1:
+    build: .
+    environment:
+      SERVER__PORT: "8081"
+      PRIMARY__NAME: node-1
+      PRIMARY__NUMBER: "1"
+      PRIMARY__PEERS: node-1@node-1:8081,node-2@node-2:8082,node-3@node-3:8083
+    ports:
+      - "8081:8081"
+
+  node-2:
+    build: .
+    environment:
+      SERVER__PORT: "8082"
+      PRIMARY__NAME: node-2
+      PRIMARY__NUMBER: "2"
+      PRIMARY__PEERS: node-1@node-1:8081,node-2@node-2:8082,node-3@node-3:8083
+    ports:
+      - "8082:8082"
+
+  node-3:
+    build: .
+    environment:
+      SERVER__PORT: "8083"
+      PRIMARY__NAME: node-3
+      PRIMARY__NUMBER: "3"
+      PRIMARY__PEERS: node-1@node-1:8081,node-2@node-2:8082,node-3@node-3:8083
+    ports:
+      - "8083:8083"

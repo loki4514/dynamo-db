@@ -11,6 +11,7 @@ type Storage interface {
 	Get(key string) (string, error)
 	Put(key, value string) error
 	Delete(key string) error
+	IterateOverKeyAndValues() (map[string]string, error)
 }
 
 type BadgerStore struct {
@@ -64,4 +65,38 @@ func (s *BadgerStore) Delete(key string) error {
 	}
 	s.log.Debug().Str("key", key).Msg("delete")
 	return nil
+}
+
+
+// IterateOverKeyAndValues returns every key/value in the store as a map.
+// Used for draining a node's data during a planned removal/migration.
+//
+// Note: this loads the whole store into memory at once — fine at this
+// project's scale, but a streaming callback would be the move for a large
+// store.
+func (s *BadgerStore) IterateOverKeyAndValues() (map[string]string, error) {
+	result := make(map[string]string)
+	err := s.db.View(func(txn *badger.Txn) error {
+		it := txn.NewIterator(badger.DefaultIteratorOptions)
+		defer it.Close()
+
+		for it.Rewind(); it.Valid(); it.Next() {
+			item := it.Item()
+			key := string(item.Key())
+			err := item.Value(func(val []byte) error {
+				result[key] = string(val)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		s.log.Error().Err(err).Msg("iterate failed")
+		return nil, fmt.Errorf("iterate store: %w", err)
+	}
+	s.log.Debug().Int("count", len(result)).Msg("iterated store")
+	return result, nil
 }
