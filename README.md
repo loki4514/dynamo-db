@@ -35,6 +35,24 @@ load spreads evenly and a failure's keys scatter across many neighbors instead o
 In practice this holds up: loading 500 keys across a 3-node cluster lands **183 / 162 / 155**
 per node — within ~9% of a perfectly even split, from hashing alone.
 
+## Status
+
+Working today:
+
+- Consistent-hash ring with ~150 virtual nodes per physical node
+- Key → owner lookup (binary search + wrap-around)
+- Add / remove a node, with the affected keys migrated between nodes
+- Request routing: hit any node, it forwards to the owner and relays the response
+- Per-node WAL with crash recovery replay on startup
+- 3-node cluster via Docker Compose
+
+Not yet built:
+
+- Replication / preference list (each key is currently stored on one node only)
+- Automatic failure detection (removal is a manual/administrative action)
+- Dynamic membership (peers are a static list fixed at launch)
+- On-disk persistence (storage is currently in-memory)
+
 ## Stack
 
 - **Go 1.25**
